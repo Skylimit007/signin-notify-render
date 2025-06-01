@@ -1,63 +1,62 @@
-// server.js
+require('dotenv').config();
 const express = require('express');
-const { OAuth2Client } = require('google-auth-library');
+const cors = require('cors');
+const { jwtVerify } = require('jose');
 const nodemailer = require('nodemailer');
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-const NOTIFY_TO = process.env.NOTIFY_TO;
-
-if (!CLIENT_ID || !EMAIL_USER || !EMAIL_PASS || !NOTIFY_TO) {
-  console.error('Missing one of GOOGLE_CLIENT_ID, EMAIL_USER, EMAIL_PASS, or NOTIFY_TO');
-  process.exit(1);
-}
-
-const client = new OAuth2Client(CLIENT_ID);
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-app.post('/notify-signin', async (req, res) => {
-  const { token, timestamp } = req.body || {};
-  if (!token || !timestamp) {
-    return res.status(400).json({ error: 'token and timestamp are required' });
-  }
+// Email transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
 
+// Login notification endpoint
+app.post('/login-notification', async (req, res) => {
   try {
-    // Verify token
-    const ticket = await client.verifyIdToken({
-      idToken: token,
-      audience: CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    const email = payload.email;
+    const { credential } = req.body;
+    
+    if (!credential) {
+      return res.status(400).json({ error: 'Missing credential' });
+    }
+
+    // Verify and decode JWT
+    const { payload } = await jwtVerify(
+      credential,
+      new TextEncoder().encode(process.env.JWT_SECRET)
+    );
+
+    const { name, email } = payload;
 
     // Send email
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+    await transporter.sendMail({
+      from: `NextEdge Notifications <${process.env.EMAIL_USER}>`,
+      to: process.env.NOTIFICATION_EMAIL,
+      subject: 'New User Login',
+      html: `
+        <h2>New Login Detected</h2>
+        <p><strong>User:</strong> ${name || 'Unknown'} (${email})</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>IP Address:</strong> ${req.ip}</p>
+      `,
     });
 
-    const mailOptions = {
-      from: EMAIL_USER,
-      to: NOTIFY_TO,
-      subject: 'New Sign-In Alert',
-      text: `User ${email} signed in at ${timestamp}`,
-    };
-
-    await transporter.sendMail(mailOptions);
-    return res.status(200).json({ success: true, message: 'Notification sent' });
-  } catch (err) {
-    console.error('Error in /notify-signin:', err);
-    return res.status(500).json({ success: false, error: err.message });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'OK' });
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
