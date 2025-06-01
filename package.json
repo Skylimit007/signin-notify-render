@@ -4,14 +4,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'Building...' && echo 'No additional build steps needed'",
+    "build": "echo 'No build required' && exit 0",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "jose": "^4.14.4",
+    "google-auth-library": "^8.9.0",
     "nodemailer": "^6.9.3"
   },
   "engines": {
