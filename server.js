@@ -10,29 +10,29 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors({
   origin: 'https://www.nextedgeinnovations.org',
-  methods: ['POST']
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
 }));
 app.use(express.json());
 
-// Email setup
+// Email configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    pass: process.env.EMAIL_PASSWORD
   }
 });
 
-// Google auth client
+// Initialize Google Auth
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Login endpoint
 app.post('/login-notification', async (req, res) => {
   try {
     const { credential } = req.body;
     
     if (!credential) {
-      return res.status(400).json({ error: 'Missing credential' });
+      return res.status(400).json({ error: 'Missing Google credential' });
     }
 
     // Verify Google token
@@ -40,7 +40,8 @@ app.post('/login-notification', async (req, res) => {
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    const { name, email } = ticket.getPayload();
+    const payload = ticket.getPayload();
+    const { name, email } = payload;
 
     // Send notification email
     await transporter.sendMail({
@@ -48,25 +49,32 @@ app.post('/login-notification', async (req, res) => {
       to: process.env.NOTIFICATION_EMAIL,
       subject: 'New User Login',
       html: `
-        <h2>New Login</h2>
-        <p><strong>User:</strong> ${name}</p>
+        <h2>New Login Detected</h2>
+        <p><strong>User:</strong> ${name || 'Unknown'}</p>
         <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Time:</strong> ${new Date()}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
       `
     });
 
-    res.json({ success: true });
+    res.json({ success: true, user: { name, email } });
   } catch (error) {
-    console.error('Endpoint error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      error: 'Authentication failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : null
+    });
   }
 });
 
-// Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'running', timestamp: new Date() });
+  res.json({ 
+    status: 'running',
+    service: 'NextEdge Login Notifications',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Google Client ID: ${process.env.GOOGLE_CLIENT_ID}`);
 });
