@@ -38,10 +38,10 @@ async function sendLoginNotification(user) {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: process.env.NOTIFICATION_EMAIL, // Where you want to receive notifications
-            subject: 'New User Login - NextEdge Innovations',
+            subject: 'User Login - Next Edge Innovations',
             html: `
                 <h2>New User Login</h2>
-                <p>A user has signed in to NextEdge Innovations:</p>
+                <p>A user has signed in to Next Edge Innovations:</p>
                 <ul>
                     <li><strong>Name:</strong> ${user.name}</li>
                     <li><strong>Email:</strong> ${user.email}</li>
