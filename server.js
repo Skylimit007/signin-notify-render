@@ -11,9 +11,13 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Middleware
 app.use(cors({
-    origin: 'https://www.nextedgeinnovations.org',
+    origin: [
+        'https://www.nextedgeinnovations.org',
+        'http://localhost' // Add development origins
+    ],
     methods: ['POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
+    allowedHeaders: ['Content-Type'],
+    credentials: true
 }));
 
 app.use(express.json());
@@ -25,8 +29,7 @@ app.post('/login', async (req, res) => {
         if (!req.body.credential) {
             return res.status(400).json({
                 success: false,
-                error: 'Missing Google credential',
-                received: Object.keys(req.body)
+                error: 'Missing Google credential'
             });
         }
 
@@ -38,6 +41,13 @@ app.post('/login', async (req, res) => {
         
         const payload = ticket.getPayload();
         
+        if (!payload.email_verified) {
+            return res.status(401).json({
+                success: false,
+                error: 'Google email not verified'
+            });
+        }
+
         // 3. Log successful login
         console.log('User logged in:', {
             name: payload.name,
@@ -51,7 +61,8 @@ app.post('/login', async (req, res) => {
             user: {
                 id: payload.sub,
                 name: payload.name,
-                email: payload.email
+                email: payload.email,
+                picture: payload.picture
             }
         });
         
@@ -61,10 +72,7 @@ app.post('/login', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Authentication failed',
-            ...(process.env.NODE_ENV === 'development' && {
-                details: error.message,
-                stack: error.stack
-            })
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
@@ -74,7 +82,8 @@ app.get('/', (req, res) => {
     res.json({
         status: 'running',
         service: 'NextEdge Authentication',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 
@@ -89,5 +98,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Google Client ID: ${process.env.GOOGLE_CLIENT_ID}`);
+    console.log(`CORS configured for: ${process.env.ALLOWED_ORIGINS || 'default origins'}`);
 });
