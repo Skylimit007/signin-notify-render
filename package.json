@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "eslint": "^8.56.0",
-    "eslint-config-airbnb-base": "^16.1.0",
+    "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.29.1",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
@@ -36,9 +36,5 @@
     "nextedge"
   ],
   "author": "Your Name <your.email@nextedgeinnovations.org>",
-  "license": "ISC",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-repo/nextedge-login-service.git"
-  }
+  "license": "ISC"
 }
